@@ -77,7 +77,7 @@ Set the appropriate dataset paths in the `configs.py` file.
 - **To Train:** Refer to [this link](https://github.com/MosyMosy/STARTUP/tree/main/teacher_miniImageNet).
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/baseline_teacher --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/baseline_teacher --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/blob/main/Dictionaries/baseline_teacher/checkpoint_best.pkl)
 
@@ -85,7 +85,7 @@ Set the appropriate dataset paths in the `configs.py` file.
 - **To Train:** Refer to [this link](https://github.com/MosyMosy/STARTUP/tree/main/teacher_miniImageNet_na).
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/baseline_na_teacher --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_na_teacher/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/baseline_na_teacher --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_na_teacher/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/baseline_na_teacher/checkpoint_best.pkl)
 
@@ -94,22 +94,22 @@ Set the appropriate dataset paths in the `configs.py` file.
 #### AdaBN BN
 - **To Train:**
   ```bash
-  python AdaBN.py --dir ./logs/AdaBN/{dataset_name} --base_dictionary logs/baseline_teacher/checkpoint_best.pkl --target_dataset $target_testset --target_subset_split datasets/split_seed_1/$target_testset_unlabeled_20.csv --bsize 256 --epochs 10 --model resnet10
+  python src/AdaBN.py --dir ./logs/AdaBN/{dataset_name} --base_dictionary logs/baseline_teacher/checkpoint_best.pkl --target_dataset $target_testset --target_subset_split datasets/split_seed_1/$target_testset_unlabeled_20.csv --bsize 256 --epochs 10 --model resnet10
   ```
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/AdaBN/{Target dataset name} --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/AdaBN/{Target dataset name}/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/AdaBN/{Target dataset name} --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/AdaBN/{Target dataset name}/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/AdaBN/{Target_dataset_name}/checkpoint_best.pkl)
 
 #### AdaBN FN
 - **To Train:**
   ```bash
-  python AdaBN_na.py --dir ./logs/AdaBN_na/{dataset_name} --base_dictionary logs/baseline_na_teacher/checkpoint_best.pkl --target_dataset $target_testset --target_subset_split datasets/split_seed_1/$target_testset_unlabeled_20.csv --bsize 256 --epochs 10 --model resnet10
+  python src/AdaBN_na.py --dir ./logs/AdaBN_na/{dataset_name} --base_dictionary logs/baseline_na_teacher/checkpoint_best.pkl --target_dataset $target_testset --target_subset_split datasets/split_seed_1/$target_testset_unlabeled_20.csv --bsize 256 --epochs 10 --model resnet10
   ```
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/AdaBN_na/{Target dataset name} --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/AdaBN_na/{Target dataset name}/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/AdaBN_na/{Target dataset name} --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/AdaBN_na/{Target dataset name}/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/AdaBN_na/{Target_dataset_name}/checkpoint_best.pkl)
 
@@ -118,11 +118,11 @@ Set the appropriate dataset paths in the `configs.py` file.
 #### Baseline BN (ImageNet)
 - **To Train:**
   ```bash
-  python ImageNet.py --dir ./logs/ImageNet/ --arch resnet18 --data ./data/ILSVRC/Data/CLS-LOC --gpu 0
+  python src/ImageNet.py --dir ./logs/ImageNet/ --arch resnet18 --data ./data/ILSVRC/Data/CLS-LOC --gpu 0
   ```
 - **To Fine-Tune:**
   ```bash
-  python ImageNet_finetune.py --save_dir ./logs/ImageNet --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
+  python src/ImageNet_finetune.py --save_dir ./logs/ImageNet --target_dataset {Target dataset name} --subset_split datasets/split_seed_1/{Target dataset name}_labeled_80.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/ImageNet/checkpoint_best.pkl)
 
@@ -131,18 +131,18 @@ Set the appropriate dataset paths in the `configs.py` file.
 #### Baseline BN
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/eval/baseline_teacher --target_dataset ImageNet_test --subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/eval/baseline_teacher --target_dataset ImageNet_test --subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --embedding_load_path ./logs/baseline_teacher/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/baseline_teacher/checkpoint_best.pkl)
 
 #### AdaBN BN
 - **To Adapt:**
   ```bash
-  python AdaBN.py --dir ./logs/AdaBN_teacher/miniImageNet --base_dictionary logs/baseline_teacher/checkpoint_best.pkl --target_dataset ImageNet_test --target_subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --bsize 256 --epochs 10 --model resnet10
+  python src/AdaBN.py --dir ./logs/AdaBN_teacher/miniImageNet --base_dictionary logs/baseline_teacher/checkpoint_best.pkl --target_dataset ImageNet_test --target_subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --bsize 256 --epochs 10 --model resnet10
   ```
 - **To Fine-Tune:**
   ```bash
-  python finetune.py --save_dir ./logs/AdaBN_teacher/miniImageNet --target_dataset ImageNet_test --subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --embedding_load_path ./logs/AdaBN_teacher/miniImageNet/checkpoint_best.pkl --freeze_backbone
+  python src/finetune.py --save_dir ./logs/AdaBN_teacher/miniImageNet --target_dataset ImageNet_test --subset_split datasets/split_seed_1/ImageNet_val_labeled.csv --embedding_load_path ./logs/AdaBN_teacher/miniImageNet/checkpoint_best.pkl --freeze_backbone
   ```
 - **Pre-trained Model:** [Checkpoint](https://github.com/MosyMosy/FN_Model_Zoo/tree/main/Dictionaries/AdaBN_teacher/miniImageNet/checkpoint_best.pkl)
 
@@ -153,13 +153,12 @@ Pre-trained models are available for each experiment, enabling easy replication 
 If you find this work useful, please consider citing the paper:
 
 ```
-@article{YourPaper,
-  title={Revisiting Learnable Affines for Batch Norm in Few-Shot Transfer Learning},
-  author={YourName, Author},
-  journal={Journal of Machine Learning},
-  year={2024},
-  volume={X},
-  pages={Y-Z}
+@inproceedings{yazdanpanah2022revisiting,
+  title={Revisiting learnable affines for batch norm in few-shot transfer learning},
+  author={Yazdanpanah, Moslem and Rahman, Aamer Abdul and Chaudhary, Muawiz and Desrosiers, Christian and Havaei, Mohammad and Belilovsky, Eugene and Kahou, Samira Ebrahimi},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={9109--9118},
+  year={2022}
 }
 ```
 
