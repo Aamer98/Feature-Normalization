@@ -11,16 +11,26 @@ from abc import abstractmethod
 from torchvision.datasets import ImageFolder
 
 from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # Handle truncated images
 
 import sys
 sys.path.append("../")
-import configs
+import configs  # Import paths from configs
 
 import os
 import copy
 
 def construct_subset(dataset, split):
+    """
+    Constructs a subset of the dataset based on a provided split.
+
+    Args:
+        dataset (Dataset): The original dataset.
+        split (str): Path to a CSV file containing the split information.
+
+    Returns:
+        Dataset: A subset of the original dataset containing only the samples specified in the split.
+    """
     print("Using split: ", split)
     split = pd.read_csv(split)['img_path'].values
     root = dataset.root
@@ -28,153 +38,342 @@ def construct_subset(dataset, split):
     class_to_idx = dataset.class_to_idx
     targets = [class_to_idx[os.path.dirname(i)] for i in split]
 
-    # image_names = np.array([i[0] for i in dataset.imgs])
-    # # ind 
-    # ind = np.concatenate([np.where(image_names == os.path.join(root, j))[0] for j in split])
     image_names = [os.path.join(root, j) for j in split]
     dataset_subset = copy.deepcopy(dataset)
 
-    dataset_subset.samples = [j for j in zip(image_names, targets)]
+    dataset_subset.samples = list(zip(image_names, targets))
     dataset_subset.imgs = dataset_subset.samples
     dataset_subset.targets = targets
     return dataset_subset
 
-# identity = lambda x:x
-def identity(x): return x
+def identity(x):
+    """Identity function used as a default target transform."""
+    return x
 
 class SimpleDataset:
+    """
+    A simple dataset class that wraps around the MiniImageNet dataset for simple data loading.
+
+    Args:
+        transform (callable): A function/transform that takes in a PIL image and returns a transformed version.
+        target_transform (callable, optional): A function/transform that takes in the target and transforms it.
+            Defaults to the identity function.
+        split (str, optional): The filename of a CSV containing a split for the data to be used.
+            If None, then the full dataset is used. Defaults to None.
+    """
+
     def __init__(self, transform, target_transform=identity, split=None):
         self.transform = transform
         self.target_transform = target_transform
-        self.split = None
-        self.d = ImageFolder(configs.miniImageNet_path, transform=self.transform, 
-                        target_transform=self.target_transform)
+        self.split = split
+        # Load the MiniImageNet dataset using ImageFolder
+        self.d = ImageFolder(configs.miniImageNet_path, transform=self.transform,
+                             target_transform=self.target_transform)
 
         if split is not None:
             self.d = construct_subset(self.d, split)
 
-
     def __getitem__(self, i):
+        """
+        Retrieves the image and target at index i.
+
+        Args:
+            i (int): Index
+
+        Returns:
+            tuple: (image, target) where image is the transformed image and target is the label.
+        """
         return self.d[i]
 
     def __len__(self):
+        """
+        Returns the total number of samples.
+
+        Returns:
+            int: The total number of samples in the dataset.
+        """
         return len(self.d)
 
 class SetDataset:
-    def __init__(self, batch_size, transform, split=None):
-        '''
-            Split the the dataset into sub dataset (each dataset belongs to the same class)
-        '''
+    """
+    A dataset class that organizes data for few-shot learning by grouping images by class.
 
+    Args:
+        batch_size (int): Number of images per batch.
+        transform (callable): A function/transform that takes in a PIL image and returns a transformed version.
+        split (str, optional): The filename of a CSV containing a split for the data to be used.
+            If None, then the full dataset is used. Defaults to None.
+
+    Attributes:
+        cl_list (list): A list of class labels.
+        sub_dataloader (list): A list of DataLoaders, one for each class.
+    """
+
+    def __init__(self, batch_size, transform, split=None):
+        # Load the MiniImageNet dataset using ImageFolder
         self.d = ImageFolder(configs.miniImageNet_path, transform=transform)
         self.split = split
 
         if split is not None:
             self.d = construct_subset(self.d, split)
 
+        # Get the list of class labels
         self.cl_list = range(len(self.d.classes))
 
-        self.sub_dataloader = [] 
-        sub_data_loader_params = dict(batch_size = batch_size,
-                                  shuffle = True,
-                                  num_workers = 0,
-                                  pin_memory = False)        
+        self.sub_dataloader = []
+        sub_data_loader_params = dict(
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=False
+        )
+        # Create a DataLoader for each class
         for cl in self.cl_list:
             ind = np.where(np.array(self.d.targets) == cl)[0].tolist()
             sub_dataset = torch.utils.data.Subset(self.d, ind)
-            self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
+            self.sub_dataloader.append(
+                torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params)
+            )
 
     def __getitem__(self, i):
+        """
+        Retrieves the next batch of data from the DataLoader corresponding to class i.
+
+        Args:
+            i (int): Index of the class DataLoader to retrieve data from.
+
+        Returns:
+            tuple: A batch of (images, targets) from the specified class DataLoader.
+        """
         return next(iter(self.sub_dataloader[i]))
 
     def __len__(self):
+        """
+        Returns the number of unique classes in the dataset.
+
+        Returns:
+            int: The number of unique classes.
+        """
         return len(self.sub_dataloader)
 
 class EpisodicBatchSampler(object):
+    """
+    Sampler that yields batches of class indices for episodic training in few-shot learning.
+
+    Args:
+        n_classes (int): Total number of classes in the dataset.
+        n_way (int): Number of classes to sample in each episode.
+        n_episodes (int): Number of episodes (iterations) per epoch.
+    """
+
     def __init__(self, n_classes, n_way, n_episodes):
         self.n_classes = n_classes
         self.n_way = n_way
         self.n_episodes = n_episodes
 
     def __len__(self):
+        """
+        Returns the number of episodes per epoch.
+
+        Returns:
+            int: The number of episodes.
+        """
         return self.n_episodes
 
     def __iter__(self):
-        for i in range(self.n_episodes):
+        """
+        Yields a list of class indices for each episode.
+
+        Yields:
+            torch.Tensor: A tensor containing indices of classes sampled for the episode.
+        """
+        for _ in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
 
 class TransformLoader:
-    def __init__(self, image_size, 
-                 normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.4, Contrast=0.4, Color=0.4)):
+    """
+    Loads and composes image transformations based on specified parameters.
+
+    Args:
+        image_size (int): Desired output size of the images.
+        normalize_param (dict, optional): Parameters for normalization transform.
+            Defaults to mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225].
+        jitter_param (dict, optional): Parameters for jitter transform.
+            Defaults to Brightness=0.4, Contrast=0.4, Color=0.4.
+    """
+
+    def __init__(self, image_size,
+                 normalize_param=dict(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                 jitter_param=dict(Brightness=0.4, Contrast=0.4, Color=0.4)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
-    
+
     def parse_transform(self, transform_type):
-        if transform_type=='ImageJitter':
-            method = add_transforms.ImageJitter( self.jitter_param )
+        """
+        Parses and returns a single transform based on the transform type.
+
+        Args:
+            transform_type (str): The name of the transform to parse.
+
+        Returns:
+            Transform: The corresponding transform object.
+        """
+        if transform_type == 'ImageJitter':
+            # Custom jitter transform using additional_transforms module
+            method = add_transforms.ImageJitter(self.jitter_param)
             return method
         method = getattr(transforms, transform_type)
-        if transform_type=='RandomSizedCrop' or transform_type == 'RandomResizedCrop':
-            return method(self.image_size) 
-        elif transform_type=='CenterCrop':
-            return method(self.image_size) 
-        elif transform_type=='Scale' or transform_type == 'Resize':
-            return method([int(self.image_size*1.15), int(self.image_size*1.15)])
-        elif transform_type=='Normalize':
-            return method(**self.normalize_param )
+        if transform_type in ['RandomSizedCrop', 'RandomResizedCrop']:
+            return method(self.image_size)
+        elif transform_type == 'CenterCrop':
+            return method(self.image_size)
+        elif transform_type in ['Scale', 'Resize']:
+            # Resize the image to a size slightly larger than the desired size
+            return method([int(self.image_size * 1.15), int(self.image_size * 1.15)])
+        elif transform_type == 'Normalize':
+            # Normalize the image using the specified mean and std
+            return method(**self.normalize_param)
         else:
+            # For transforms that don't require additional parameters
             return method()
 
-    def get_composed_transform(self, aug = False):
-        if aug:
-            transform_list = ['RandomResizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
-        else:
-            transform_list = ['Resize','CenterCrop', 'ToTensor', 'Normalize']
+    def get_composed_transform(self, aug=False):
+        """
+        Composes a list of transforms into a single transform.
 
-        transform_funcs = [ self.parse_transform(x) for x in transform_list]
+        Args:
+            aug (bool, optional): If True, includes data augmentation transforms.
+                Defaults to False.
+
+        Returns:
+            Transform: A composed transform object.
+        """
+        if aug:
+            transform_list = [
+                'RandomResizedCrop',
+                'ImageJitter',
+                'RandomHorizontalFlip',
+                'ToTensor',
+                'Normalize'
+            ]
+        else:
+            transform_list = ['Resize', 'CenterCrop', 'ToTensor', 'Normalize']
+
+        # Parse each transform and compose them
+        transform_funcs = [self.parse_transform(x) for x in transform_list]
         transform = transforms.Compose(transform_funcs)
         return transform
 
 class DataManager(object):
+
     @abstractmethod
-    def get_data_loader(self, data_file, aug):
-        pass 
+    def get_data_loader(self, aug, num_workers):
+        """
+        Abstract method to obtain a data loader.
+
+        Args:
+            aug (bool): Whether to apply data augmentation.
+            num_workers (int): Number of worker threads to use.
+
+        Returns:
+            DataLoader: A PyTorch data loader object.
+        """
+        pass
 
 class SimpleDataManager(DataManager):
-    def __init__(self, image_size, batch_size, split=None):        
+    """
+    Data manager for simple datasets.
+
+    Args:
+        image_size (int): Desired output size of the images.
+        batch_size (int): Number of samples per batch.
+        split (str, optional): The filename of a CSV containing a split for the data to be used.
+            If None, then the full dataset is used. Defaults to None.
+    """
+
+    def __init__(self, image_size, batch_size, split=None):
         super(SimpleDataManager, self).__init__()
         self.batch_size = batch_size
         self.trans_loader = TransformLoader(image_size)
         self.split = split
 
-    def get_data_loader(self, aug, num_workers=12): #parameters that would change on train/val set
+    def get_data_loader(self, aug, num_workers=12):
+        """
+        Returns a data loader for the dataset.
+
+        Args:
+            aug (bool): Whether to apply data augmentation.
+            num_workers (int, optional): Number of worker threads to use. Defaults to 12.
+
+        Returns:
+            DataLoader: A PyTorch data loader object.
+        """
+        # Obtain the composed transform
         transform = self.trans_loader.get_composed_transform(aug)
+        # Create the dataset
         dataset = SimpleDataset(transform, split=self.split)
 
-        data_loader_params = dict(batch_size=self.batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)       
+        # Data loader parameters
+        data_loader_params = dict(
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True
+        )
+        # Create and return the data loader
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
 
         return data_loader
 
 class SetDataManager(DataManager):
-    def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100, split=None):        
+    """
+    Data manager for episodic datasets used in few-shot learning.
+
+    Args:
+        image_size (int): Desired output size of the images.
+        n_way (int, optional): Number of classes per episode. Defaults to 5.
+        n_support (int, optional): Number of support samples per class. Defaults to 5.
+        n_query (int, optional): Number of query samples per class. Defaults to 16.
+        n_episode (int, optional): Number of episodes per epoch. Defaults to 100.
+        split (str, optional): The filename of a CSV containing a split for the data to be used.
+            If None, then the full dataset is used. Defaults to None.
+    """
+
+    def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_episode=100, split=None):
         super(SetDataManager, self).__init__()
         self.image_size = image_size
         self.n_way = n_way
         self.batch_size = n_support + n_query
-        self.n_eposide = n_eposide
-
+        self.n_episode = n_episode
         self.split = split
 
         self.trans_loader = TransformLoader(image_size)
 
-    def get_data_loader(self, aug, num_workers=12): #parameters that would change on train/val set
+    def get_data_loader(self, aug, num_workers=12):
+        """
+        Returns a data loader for episodic training.
+
+        Args:
+            aug (bool): Whether to apply data augmentation.
+            num_workers (int, optional): Number of worker threads to use. Defaults to 12.
+
+        Returns:
+            DataLoader: A PyTorch data loader object with episodic batching.
+        """
+        # Obtain the composed transform
         transform = self.trans_loader.get_composed_transform(aug)
+        # Create the dataset
         dataset = SetDataset(self.batch_size, transform, self.split)
-        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide)  
-        data_loader_params = dict(batch_sampler=sampler, num_workers=num_workers, pin_memory=True)       
+        # Create an episodic batch sampler
+        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_episode)
+        # Data loader parameters
+        data_loader_params = dict(
+            batch_sampler=sampler,
+            num_workers=num_workers,
+            pin_memory=True
+        )
+        # Create and return the data loader
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
         return data_loader
 
