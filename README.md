@@ -1,23 +1,59 @@
-# The "Revisiting Learnable Affines for Batch Norm in Few-Shot Transfer Learning" Code-base
+# Revisiting Learnable Affines for Batch Norm in Few-Shot Transfer Learning
+
+## Table of Contents
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Setup](#setup)
+  - [Installing Dependencies](#installing-dependencies)
+  - [Dataset Preparation](#dataset-preparation)
+    - [MiniImageNet and CD-FSL Datasets](#miniimagenet-and-cd-fsl-datasets)
+    - [ImageNet](#imagenet)
+    - [Dataset Splits](#dataset-splits)
+  - [Setting Dataset Paths](#setting-dataset-paths)
+- [Running Experiments](#running-experiments)
+  - [Baseline Experiments (Table 2)](#baseline-experiments-table-2)
+    - [Baseline BN](#baseline-bn)
+    - [Baseline FN](#baseline-fn)
+  - [AdaBN Experiments (Table 2)](#adabn-experiments-table-2)
+    - [AdaBN BN](#adabn-bn)
+    - [AdaBN FN](#adabn-fn)
+  - [ImageNet Experiments (Table 1)](#imagenet-experiments-table-1)
+    - [Baseline BN (ImageNet)](#baseline-bn-imagenet)
+    - [Baseline FN (ImageNet)](#baseline-fn-imagenet)
+    - [Baseline Beta (ImageNet)](#baseline-beta-imagenet)
+    - [Baseline Gamma (ImageNet)](#baseline-gamma-imagenet)
+  - [Near-Domain Few-Shot Evaluation (Table 4)](#near-domain-few-shot-evaluation-table-4)
+- [Pre-trained Models](#pre-trained-models)
+- [References](#references)
+- [Updates](#updates)
 
 ## Introduction
 
-### Requirements
-This codebase is tested with:  
-1.  h5py==3.1.0
-2.  joypy==0.2.5
-3.  matplotlib==3.4.2
-4.  numpy==1.21.0
-5.  pandas==1.2.3
-6.  Pillow==8.4.0
-7.  scikit_learn==1.0.1
-8.  scipy==1.6.0
-9.  seaborn==0.11.2
-10. torch==1.8.1
-11. torchvision==0.9.1
-12. tqdm==4.60.0
+This repository contains the codebase for reproducing the experiments in the paper **"Revisiting Learnable Affines for Batch Norm in Few-Shot Transfer Learning"**.
 
-To install all requirements, use "pip install -r requirements.txt"
+We explore the impact of learnable affine parameters in Batch Normalization layers during few-shot transfer learning. The code allows you to train models and perform fine-tuning experiments on several datasets, including MiniImageNet, CD-FSL datasets, and ImageNet.
+
+## Requirements
+
+The codebase has been tested with the following package versions:
+
+1. `h5py==3.1.0`
+2. `joypy==0.2.5`
+3. `matplotlib==3.4.2`
+4. `numpy==1.21.0`
+5. `pandas==1.2.3`
+6. `Pillow==8.4.0`
+7. `scikit_learn==1.0.1`
+8. `scipy==1.6.0`
+9. `seaborn==0.11.2`
+10. `torch==1.8.1`
+11. `torchvision==0.9.1`
+12. `tqdm==4.60.0`
+
+To install all the required packages, run:
+
+```bash
+pip install -r requirements.txt
 
 ## Running Experiments 
 ### Dataset Preparation
