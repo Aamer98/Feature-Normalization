@@ -1,28 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides data loading utilities for a custom dataset, specifically designed
-for handling images from the Crop Disease dataset. It includes classes for custom datasets,
-data managers, and transformation loaders that are used for training machine learning models,
-especially in few-shot learning scenarios.
-
-Classes:
-    SimpleDataset: Wraps around the ImageFolder dataset for simple data loading.
-    SetDataset: Organizes data for few-shot learning by grouping images by class.
-    EpisodicBatchSampler: Sampler that yields batches of class indices for episodic training.
-    TransformLoader: Loads and composes image transformations.
-    DataManager: Abstract base class for data managers.
-    SimpleDataManager: Data manager for simple datasets.
-    SetDataManager: Data manager for episodic datasets used in few-shot learning.
-
-Functions:
-    construct_subset(dataset, split): Constructs a subset of the dataset based on a provided split.
-
-Notes:
-    - The `configs` module is expected to contain the path to the Crop Disease dataset.
-    - The dataset uses `ImageFolder` from `torchvision.datasets`, so the data should be organized accordingly.
-"""
-
 import torch
 from PIL import Image
 import numpy as np
@@ -296,16 +273,6 @@ class DataManager(object):
 
     @abstractmethod
     def get_data_loader(self, aug, num_workers):
-        """
-        Abstract method to obtain a data loader.
-
-        Args:
-            aug (bool): Whether to apply data augmentation.
-            num_workers (int): Number of worker threads to use.
-
-        Returns:
-            DataLoader: A PyTorch data loader object.
-        """
         pass
 
 class SimpleDataManager(DataManager):

@@ -1,19 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides functionality for loading and processing data from HDF5 files for machine learning tasks.
-It includes:
-
-- `SimpleHDF5Dataset`: A dataset class that handles HDF5 data for PyTorch models.
-- `init_loader`: A function to initialize and organize data from an HDF5 file into a dictionary keyed by class labels.
-
-Classes:
-    SimpleHDF5Dataset: A dataset class that allows indexing into HDF5 datasets.
-
-Functions:
-    init_loader(filename): Loads data from an HDF5 file and organizes it into a class-wise dictionary.
-"""
-
 import torch
 import numpy as np
 import h5py

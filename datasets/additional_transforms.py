@@ -4,11 +4,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-This module provides the `ImageJitter` class, which applies random jitter transformations
-to images using the PIL `ImageEnhance` module. These transformations include adjustments
-to brightness, contrast, sharpness, and color, enabling data augmentation for image processing tasks.
-"""
 
 import torch
 from PIL import ImageEnhance
@@ -40,12 +35,6 @@ class ImageJitter(object):
     """
 
     def __init__(self, transformdict):
-        """
-        Initializes the ImageJitter with the specified transformations.
-
-        Args:
-            transformdict (dict): Dictionary of transformations and their corresponding maximum adjustment factors.
-        """
         self.transforms = [
             (transformtypedict[k], transformdict[k]) for k in transformdict
         ]
@@ -64,10 +53,9 @@ class ImageJitter(object):
         # Generate random factors for each transformation
         randtensor = torch.rand(len(self.transforms))
 
+        # Apply transformations
         for i, (transformer, alpha) in enumerate(self.transforms):
-            # Calculate the random enhancement factor within [1 - alpha, 1 + alpha]
             r = alpha * (randtensor[i] * 2.0 - 1.0) + 1
-            # Apply the transformation and ensure the output is in RGB mode
             out = transformer(out).enhance(r).convert('RGB')
 
         return out

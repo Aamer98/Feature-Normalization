@@ -4,12 +4,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-This module provides the `ImageJitter` class, which applies random jitter transformations
-to images. The transformations include adjustments to brightness, contrast, sharpness,
-and color, allowing for data augmentation in image processing tasks.
-"""
-
 import torch
 from PIL import ImageEnhance
 

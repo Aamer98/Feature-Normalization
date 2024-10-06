@@ -1,20 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides data loading utilities for the CIFAR100 and CIFAR10 datasets, including classes
-for dataset management, data transformations, and batch sampling, particularly useful for few-shot learning tasks.
-
-Classes:
-    SimpleDataset: Loads and transforms images from CIFAR100 or CIFAR10 datasets.
-    SetDataset: Organizes data for few-shot learning by grouping images by class.
-    SubDataset: Helper class used within SetDataset to manage data for a single class.
-    EpisodicBatchSampler: Samples classes and batches for episodic training in few-shot learning.
-    TransformLoader: Loads and composes image transformations.
-    DataManager: Abstract base class for data managers.
-    SimpleDataManager: Data manager for simple datasets.
-    SetDataManager: Data manager for episodic datasets used in few-shot learning.
-"""
-
 import torch
 from PIL import Image
 import numpy as np
@@ -39,16 +24,6 @@ class SimpleDataset:
     """
 
     def __init__(self, mode, dataset, transform, target_transform=identity):
-        """
-        Initializes the SimpleDataset.
-
-        Args:
-            mode (str): The mode of the dataset, can be 'base', 'val', or 'novel'.
-            dataset (str): The name of the dataset to use, either 'CIFAR100' or 'CIFAR10'.
-            transform (callable): A function/transform that takes in an image and returns a transformed version.
-            target_transform (callable, optional): A function/transform that takes in the target and transforms it.
-                Defaults to the identity function.
-        """
         self.transform = transform
         self.dataset = dataset
         self.target_transform = target_transform
@@ -111,20 +86,6 @@ class SimpleDataset:
 
 
 class SetDataset:
-    """
-    A dataset class that organizes data for few-shot learning by grouping images by class.
-
-    Args:
-        mode (str): The mode of the dataset, can be 'base', 'val', or 'novel'.
-        dataset (str): The name of the dataset to use, either 'CIFAR100' or 'CIFAR10'.
-        batch_size (int): Number of images per batch.
-        transform (callable): A function/transform that takes in an image and returns a transformed version.
-
-    Attributes:
-        sub_meta (dict): A dictionary mapping class labels to lists of images.
-        cl_list (list): A list of class labels.
-        sub_dataloader (list): A list of DataLoaders, one for each class.
-    """
 
     def __init__(self, mode, dataset, batch_size, transform):
         """
@@ -214,7 +175,6 @@ class SubDataset:
         target_transform (callable, optional): A function/transform that takes in the target and transforms it.
             Defaults to the identity function.
     """
-
     def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
         self.sub_meta = sub_meta
         self.cl = cl
@@ -360,16 +320,6 @@ class DataManager(object):
 
     @abstractmethod
     def get_data_loader(self, data_file, aug):
-        """
-        Abstract method to obtain a data loader.
-
-        Args:
-            data_file (str): Path to the data file (not used in this implementation).
-            aug (bool): Whether to apply data augmentation.
-
-        Returns:
-            DataLoader: A PyTorch data loader object.
-        """
         pass
 
 
@@ -384,14 +334,6 @@ class SimpleDataManager(DataManager):
     """
 
     def __init__(self, dataset, image_size, batch_size):
-        """
-        Initializes the SimpleDataManager.
-
-        Args:
-            dataset (str): The name of the dataset to use, either 'CIFAR100' or 'CIFAR10'.
-            image_size (int): Desired output size of the images.
-            batch_size (int): Number of samples per batch.
-        """
         super(SimpleDataManager, self).__init__()
         self.batch_size = batch_size
         self.trans_loader = TransformLoader(image_size)
@@ -436,18 +378,6 @@ class SetDataManager(DataManager):
     """
 
     def __init__(self, mode, dataset, image_size, n_way=5, n_support=5, n_query=16, n_episode=100):
-        """
-        Initializes the SetDataManager.
-
-        Args:
-            mode (str): The mode of the dataset, can be 'base', 'val', or 'novel'.
-            dataset (str): The name of the dataset to use, either 'CIFAR100' or 'CIFAR10'.
-            image_size (int): Desired output size of the images.
-            n_way (int, optional): Number of classes per episode. Defaults to 5.
-            n_support (int, optional): Number of support samples per class. Defaults to 5.
-            n_query (int, optional): Number of query samples per class. Defaults to 16.
-            n_episode (int, optional): Number of episodes per epoch. Defaults to 100.
-        """
         super(SetDataManager, self).__init__()
         self.image_size = image_size
         self.n_way = n_way

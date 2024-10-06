@@ -377,16 +377,6 @@ class DataManager(object):
 
     @abstractmethod
     def get_data_loader(self, aug, num_workers):
-        """
-        Abstract method to obtain a data loader.
-
-        Args:
-            aug (bool): Whether to apply data augmentation.
-            num_workers (int): Number of worker threads to use.
-
-        Returns:
-            DataLoader: A PyTorch data loader object.
-        """
         pass
 
 

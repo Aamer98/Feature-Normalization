@@ -1,16 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides dataset classes and a batch sampler for image data used in machine learning tasks.
-It includes classes for simple datasets, set datasets for few-shot learning, and an episodic batch sampler.
-
-Classes:
-    SimpleDataset: Handles loading and transforming images from a dataset.
-    SetDataset: Organizes data for few-shot learning by grouping images by class.
-    SubDataset: A helper class used within SetDataset to manage data for a single class.
-    EpisodicBatchSampler: Samples classes and batches for episodic training in few-shot learning.
-"""
-
 import torch
 from PIL import Image
 import json

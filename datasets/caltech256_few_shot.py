@@ -1,22 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides data loading utilities for the Caltech256 dataset. It includes classes
-for downloading and processing the dataset, as well as data managers and batch samplers
-for training machine learning models, particularly in the context of few-shot learning.
-
-Classes:
-    Caltech256: Dataset class for the Caltech256 dataset.
-    SimpleDataset: Dataset class that wraps around Caltech256 for simple data loading.
-    SetDataset: Dataset class for organizing data in a way suitable for few-shot learning.
-    SubDataset: Helper dataset class used within SetDataset.
-    EpisodicBatchSampler: Sampler for creating batches of episodes for few-shot learning.
-    TransformLoader: Loads and composes image transformations.
-    DataManager: Abstract base class for data managers.
-    SimpleDataManager: Data manager for simple datasets.
-    SetDataManager: Data manager for episodic datasets used in few-shot learning.
-"""
-
 import torch
 from PIL import Image
 import numpy as np

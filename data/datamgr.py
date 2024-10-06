@@ -1,17 +1,5 @@
 # This code is modified from https://github.com/facebookresearch/low-shot-shrink-hallucinate
 
-"""
-This module provides data loading utilities for image datasets, including classes for
-transformations and data managers that handle dataset loading, transformations, and
-batch sampling for training and evaluation.
-
-Classes:
-    TransformLoader: Loads and composes image transformations.
-    DataManager: Abstract base class for data managers.
-    SimpleDataManager: Data manager for simple datasets.
-    SetDataManager: Data manager for episodic datasets used in few-shot learning.
-"""
-
 import torch
 from PIL import Image
 import numpy as np
@@ -98,16 +86,6 @@ class DataManager(object):
     """
     @abstractmethod
     def get_data_loader(self, data_file, aug):
-        """
-        Abstract method to obtain a data loader.
-
-        Args:
-            data_file (str): Path to the data file.
-            aug (bool): Whether to apply data augmentation.
-
-        Returns:
-            DataLoader: A PyTorch data loader object.
-        """
         pass 
 
 class SimpleDataManager(DataManager):
