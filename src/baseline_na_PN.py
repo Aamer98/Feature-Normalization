@@ -22,11 +22,15 @@ from configs import miniImageNet_path, ISIC_path, ChestX_path, CropDisease_path,
 
 torch.cuda.empty_cache()
 
-
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-
 def main(args):
+    """
+    The main function that sets up the model, datasets, and starts the training process.
+
+    Args:
+        args (argparse.Namespace): Command-line arguments.
+    """
     if torch.cuda.is_available():
         dev = "cuda:0"
     else:
@@ -34,7 +38,7 @@ def main(args):
     device = torch.device(dev)
 
     torch.cuda.empty_cache()
-    # Set the scenes
+    # Set up directories and logging
     if not os.path.isdir(args.dir):
         os.makedirs(args.dir)
 
@@ -43,16 +47,10 @@ def main(args):
     trainlog = utils.savelog(args.dir, 'train')
     vallog = utils.savelog(args.dir, 'val')
 
-    # wandb.init(project='STARTUP',
-    #            group=__file__,
-    #            name=f'{__file__}_{args.dir}')
-
-    # wandb.config.update(args)
-
     for arg in vars(args):
         logger.info(f"{arg}: {getattr(args, arg)}")
 
-    # seed the random number generator
+    # Seed the random number generators for reproducibility
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     torch.manual_seed(args.seed)
@@ -61,7 +59,7 @@ def main(args):
     random.seed(args.seed)
 
     ###########################
-    # Create Models
+    # Create Model
     ###########################
     if args.model == 'resnet10':
         backbone = models.ResNet10()
@@ -72,14 +70,14 @@ def main(args):
     elif args.model == 'resnet18':
         backbone = models.resnet18()
         feature_dim = 512
-        backbone.fc = nn.Identity(feature_dim)
+        backbone.fc = nn.Identity()
     else:
         raise ValueError('Invalid backbone model')
 
-    
+    # Save the initial state of the backbone
     backbone_sd_init = copy.deepcopy(backbone.state_dict())
 
-    # the student classifier head
+    # The classifier head
     clf = nn.Linear(feature_dim, 1000).to(device)
     ############################
 
@@ -87,7 +85,7 @@ def main(args):
     # Create DataLoader
     ###########################
 
-    # create the base dataset
+    # Create the base dataset
     if args.base_dataset == 'miniImageNet':
         base_transform = miniImageNet_few_shot.TransformLoader(
             args.image_size).get_composed_transform(aug=True)
@@ -100,7 +98,7 @@ def main(args):
                 base_dataset, args.base_split)
     elif args.base_dataset == 'tiered_ImageNet':
         if args.image_size != 84:
-            warnings.warn("Tiered ImageNet: The image size for is not 84x84")
+            warnings.warn("Tiered ImageNet: The image size is not 84x84")
         base_transform = tiered_ImageNet_few_shot.TransformLoader(
             args.image_size).get_composed_transform(aug=False)
         base_transform_test = tiered_ImageNet_few_shot.TransformLoader(
@@ -135,11 +133,11 @@ def main(args):
     else:
         raise ValueError("Invalid base dataset!")
 
-    # initialize the student's backbone with random weights
+    # Initialize the backbone with random weights if specified
     if args.backbone_random_init:
-        backbone.module.load_state_dict(backbone_sd_init)
+        backbone.load_state_dict(backbone_sd_init)
 
-    # Generate trainset and valset for base dataset
+    # Generate train and validation sets for base dataset
     base_ind = torch.randperm(len(base_dataset))
 
     base_train_ind = base_ind[:int((1 - args.base_val_ratio)*len(base_ind))]
@@ -165,10 +163,12 @@ def main(args):
     # Create Optimizer
     ###########################
 
+    # Freeze BatchNorm parameters
     for layer in backbone.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.bias.requires_grad = False
-                layer.weight.requires_grad = False
+        if isinstance(layer, nn.BatchNorm2d):
+            layer.bias.requires_grad = False
+            layer.weight.requires_grad = False
+
     optimizer = torch.optim.SGD([
         {'params': filter(lambda p: p.requires_grad, backbone.parameters())},
         {'params': clf.parameters()}
@@ -183,11 +183,10 @@ def main(args):
                                                            cooldown=10,
                                                            threshold_mode='rel',
                                                            threshold=1e-4, min_lr=1e-5)
-
     #######################################
     starting_epoch = 0
 
-    # whether to resume from the latest checkpoint
+    # Resume from the latest checkpoint if specified
     if args.resume_latest:
         import re
         pattern = "checkpoint_(\d+).pkl"
@@ -197,7 +196,7 @@ def main(args):
             if match:
                 candidate.append(int(match.group(1)))
 
-        # if nothing found, then start from scratch
+        # If no checkpoint found, start from scratch
         if len(candidate) == 0:
             print('No latest candidate found to resume!')
             logger.info('No latest candidate found to resume!')
@@ -209,12 +208,11 @@ def main(args):
                     load_path, args.epochs))
                 logger.info('The latest checkpoint found ({}) is after the number of epochs (={}) specified! Exiting!'.format(
                     load_path, args.epochs))
-                import sys
                 sys.exit(0)
             else:
                 best_model_path = os.path.join(args.dir, 'checkpoint_best.pkl')
 
-                # first load the previous best model
+                # First load the previous best model
                 best_epoch = load_checkpoint(backbone, clf,
                                              optimizer, scheduler, best_model_path, device)
 
@@ -229,7 +227,7 @@ def main(args):
                                            best_epoch, args.epochs, logger, vallog, args, device, postfix='Validation')
 
                 loss_val = performance_val['Loss_test/avg']
-                error_val = 100 - performance_val['top1_test_per_class/avg']
+                error_val = 100 - performance_val['top1_base_test_per_class']
 
                 best_error = error_val
                 best_loss = loss_val
@@ -256,11 +254,10 @@ def main(args):
 
         step = 50
 
-        # number of training epochs to get at least 50 updates
+        # Number of training epochs to get at least 50 updates
         warm_up_epoch = math.ceil(step / len(base_trainloader))
 
-        # keep track of the student model initialization
-        # Need to keep reloading when testing different learning rates
+        # Keep track of the model initialization
         sd_current = copy.deepcopy(backbone.state_dict())
         sd_head = copy.deepcopy(clf.state_dict())
 
@@ -270,11 +267,11 @@ def main(args):
         for current_lr in lr_candidates:
             lr_log = utils.savelog(args.dir, f'lr_{current_lr}')
 
-            # reload the student model
+            # Reload the models
             backbone.load_state_dict(sd_current)
             clf.load_state_dict(sd_head)
 
-            # create the optimizer
+            # Create the optimizer
             for layer in backbone.modules():
                 if isinstance(layer, nn.BatchNorm2d):
                     layer.bias.requires_grad = False
@@ -282,35 +279,35 @@ def main(args):
             optimizer = torch.optim.SGD([
                 {'params': filter(lambda p: p.requires_grad, backbone.parameters())},
                 {'params': clf.parameters()}
-            ],            
+            ],
                 lr=current_lr, momentum=0.9,
                 weight_decay=args.wd,
                 nesterov=False)
 
             logger.info(f'*** Testing Learning Rate: {current_lr}')
 
-            # training for a bit
+            # Training for a bit
             for i in range(warm_up_epoch):
                 perf = train(backbone, clf, optimizer,
                              base_trainloader,
                              i, warm_up_epoch, logger, lr_log, args, device, turn_off_sync=True)
 
-            # compute the validation loss for picking learning rates
+            # Compute the validation loss for picking learning rates
             perf_val = validate(backbone, clf,
                                 base_valloader,
                                 1, 1, logger, vallog, args, device, postfix='Validation',
                                 turn_off_sync=True)
             vals.append(perf_val['Loss_test/avg'])
 
-        # pick the best learning rates
+        # Pick the best learning rate
         current_lr = lr_candidates[int(np.argmin(vals))]
 
-        # reload the models
+        # Reload the models
         backbone.load_state_dict(sd_current)
         clf.load_state_dict(sd_head)
 
         logger.info(f"** Learning with lr: {current_lr}")
-        
+
         for layer in backbone.modules():
             if isinstance(layer, nn.BatchNorm2d):
                 layer.bias.requires_grad = False
@@ -339,7 +336,7 @@ def main(args):
                        args.dir, f'checkpoint_best.pkl'), 0)
 
     ############################
-    # save the initialization
+    # Save the initialization
     checkpoint(backbone, clf,
                optimizer, scheduler,
                os.path.join(
@@ -353,7 +350,7 @@ def main(args):
 
             scheduler.step(perf['Loss/avg'])
 
-            # Always checkpoint after first epoch of training
+            # Checkpointing
             if (epoch == starting_epoch) or ((epoch + 1) % args.save_freq == 0):
                 checkpoint(backbone, clf,
                            optimizer, scheduler,
@@ -385,12 +382,18 @@ def main(args):
         vallog.save()
     return
 
-
 def checkpoint(model, clf, optimizer, scheduler, save_path, epoch):
-    '''
-    epoch: the number of epochs of training that has been done
-    Should resume from epoch
-    '''
+    """
+    Saves the model, classifier, optimizer, and scheduler state dictionaries.
+
+    Args:
+        model (nn.Module): The backbone model.
+        clf (nn.Module): The classifier.
+        optimizer (Optimizer): The optimizer.
+        scheduler (_LRScheduler): The learning rate scheduler.
+        save_path (str): The path to save the checkpoint.
+        epoch (int): The current epoch number.
+    """
     sd = {
         'model': copy.deepcopy(model.state_dict()),
         'clf': copy.deepcopy(clf.state_dict()),
@@ -402,13 +405,22 @@ def checkpoint(model, clf, optimizer, scheduler, save_path, epoch):
     torch.save(sd, save_path)
     return sd
 
-
 def load_checkpoint(model, clf, optimizer, scheduler, load_path, device):
-    '''
-    Load model and optimizer from load path 
-    Return the epoch to continue the checkpoint
-    '''
-    sd = torch.load(load_path, map_location=torch.device(device))
+    """
+    Loads the model, classifier, optimizer, and scheduler state dictionaries from a checkpoint.
+
+    Args:
+        model (nn.Module): The backbone model.
+        clf (nn.Module): The classifier.
+        optimizer (Optimizer): The optimizer.
+        scheduler (_LRScheduler): The learning rate scheduler.
+        load_path (str): The path to the checkpoint file.
+        device (torch.device): The device to map the model to.
+
+    Returns:
+        int: The epoch to continue training from.
+    """
+    sd = torch.load(load_path, map_location=device)
     model.load_state_dict(sd['model'])
     clf.load_state_dict(sd['clf'])
     optimizer.load_state_dict(sd['opt'])
@@ -416,17 +428,33 @@ def load_checkpoint(model, clf, optimizer, scheduler, load_path, device):
 
     return sd['epoch']
 
-
 def train(model, clf,
           optimizer, base_trainloader, epoch,
           num_epochs, logger, trainlog, args, device, turn_off_sync=False):
+    """
+    Trains the model for one epoch.
 
+    Args:
+        model (nn.Module): The backbone model.
+        clf (nn.Module): The classifier.
+        optimizer (Optimizer): The optimizer.
+        base_trainloader (DataLoader): DataLoader for the base training dataset.
+        epoch (int): The current epoch number.
+        num_epochs (int): Total number of epochs.
+        logger (Logger): Logger for logging information.
+        trainlog (savelog): Logger for saving training logs.
+        args (argparse.Namespace): Command-line arguments.
+        device (torch.device): The device to run the model on.
+        turn_off_sync (bool, optional): If True, turns off synchronization. Default is False.
+
+    Returns:
+        dict: Averages of performance metrics.
+    """
     meters = utils.AverageMeterSet()
     model.to(device)
     model.train()
     clf.train()
 
-    mse_criterion = nn.MSELoss()
     loss_ce = nn.CrossEntropyLoss()
 
     end = time.time()
@@ -509,24 +537,41 @@ def train(model, clf,
 
     return averages
 
-
 def validate(model, clf,
              base_loader, epoch, num_epochs, logger,
              testlog, args, device, postfix='Validation', turn_off_sync=False):
+    """
+    Validates the model on the base validation dataset.
+
+    Args:
+        model (nn.Module): The backbone model.
+        clf (nn.Module): The classifier.
+        base_loader (DataLoader): DataLoader for the base validation dataset.
+        epoch (int): The current epoch number.
+        num_epochs (int): Total number of epochs.
+        logger (Logger): Logger for logging information.
+        testlog (savelog): Logger for saving validation logs.
+        args (argparse.Namespace): Command-line arguments.
+        device (torch.device): The device to run the model on.
+        postfix (str, optional): A postfix string for logging. Default is 'Validation'.
+        turn_off_sync (bool, optional): If True, turns off synchronization. Default is False.
+
+    Returns:
+        dict: Averages of performance metrics.
+    """
     meters = utils.AverageMeterSet()
     model.to(device)
     model.eval()
     clf.eval()
 
     loss_ce = nn.CrossEntropyLoss()
-    mse_criterion = nn.MSELoss()
 
     end = time.time()
 
     logits_base_all = []
     ys_base_all = []
     with torch.no_grad():
-        # Compute the loss on the source base dataset
+        # Compute the loss on the base validation dataset
         for X_base, y_base in base_loader:
             X_base = X_base.to(device)
             y_base = y_base.to(device)
@@ -580,57 +625,59 @@ def validate(model, clf,
 
     return averages
 
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='STARTUP')
-    parser.add_argument('--dir', type=str, default='./logs/baseline_na/',
-                        help='directory to save the checkpoints')
+    parser = argparse.ArgumentParser(description='STARTUP')
 
+    # General settings
+    parser.add_argument('--dir', type=str, default='./logs/baseline_na/',
+                        help='Directory to save the checkpoints')
     parser.add_argument('--bsize', type=int, default=32,
-                        help='batch_size for STARTUP')
+                        help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=1,
                         help='Number of training epochs')
     parser.add_argument('--save_freq', type=int, default=50,
-                        help='Frequency (in epoch) to save')
+                        help='Frequency (in epochs) to save the model checkpoint')
     parser.add_argument('--eval_freq', type=int, default=2,
-                        help='Frequency (in epoch) to evaluate on the val set')
+                        help='Frequency (in epochs) to evaluate on the validation set')
     parser.add_argument('--print_freq', type=int, default=10,
-                        help='Frequency (in step per epoch) to print training stats')
+                        help='Frequency (in steps per epoch) to print training stats')
     parser.add_argument('--load_path', type=str, default=None,
                         help='Path to the checkpoint to be loaded')
     parser.add_argument('--seed', type=int, default=1,
-                        help='Seed for randomness')
+                        help='Seed for randomness for reproducibility')
     parser.add_argument('--wd', type=float, default=1e-4,
                         help='Weight decay for the model')
     parser.add_argument('--resume_latest', action='store_true',
-                        help='resume from the latest model in args.dir')
+                        help='Resume from the latest model in args.dir')
     parser.add_argument('--num_workers', type=int, default=4,
-                        help='Number of workers for dataloader')
+                        help='Number of workers for DataLoader')
 
+    # Training settings
     parser.add_argument('--iteration_bp', type=int,
-                        help='which step to break in the training loop')
+                        help='Step at which to break in the training loop')
     parser.add_argument('--model', type=str, default='resnet18',
-                        help='Backbone model')
+                        help='Backbone model to use (e.g., resnet10, resnet12, resnet18)')
 
     parser.add_argument('--backbone_random_init', action='store_true',
-                        help="Use random initialized backbone ")
+                        help='Use randomly initialized backbone instead of pre-trained')
 
+    # Base dataset settings
     parser.add_argument('--base_dataset', type=str,
-                        default='miniImageNet', help='base_dataset to use')
+                        default='miniImageNet', help='Base dataset to use')
     parser.add_argument('--base_path', type=str,
-                        default=miniImageNet_path, help='path to base dataset')
+                        default=miniImageNet_path, help='Path to the base dataset')
     parser.add_argument('--base_split', type=str,
-                        help='split for the base dataset')
+                        help='Split for the base dataset')
     parser.add_argument('--base_no_color_jitter', action='store_true',
-                        help='remove color jitter for ImageNet')
+                        help='Remove color jitter augmentation for ImageNet')
     parser.add_argument('--base_val_ratio', type=float, default=0.05,
-                        help='amount of base dataset set aside for validation')
+                        help='Proportion of base dataset set aside for validation')
 
+    # Validation settings
     parser.add_argument('--batch_validate', action='store_true',
-                        help='to do batch validate rather than validate on the full dataset (Ideally, for SimCLR,' +
-                        ' the validation should be on the full dataset but might not be feasible due to hardware constraints')
+                        help='Validate in batches rather than on the full dataset')
 
+    # Image settings
     parser.add_argument('--image_size', type=int, default=224,
                         help='Resolution of the input image')
 
